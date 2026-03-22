@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Virus Outbreak - Mila Edition</title>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+        font-family: 'Courier New', Courier, monospace;
+        user-select: none;
+        touch-action: none;
+    }
+    canvas {
+        display: block;
+    }
+    #ui {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: #0f0;
+        text-shadow: 0 0 5px #0f0;
+        pointer-events: none;
+    }
+    .score-text { font-size: 24px; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+    <div class="score-text">INFECTION: <span id="score">0</span>%</div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+
+let width, height, rows, cols;
+let grid = [];
+let cellSize = 10; // حجم المكعب
+let totalCells = 0;
+let infectedCount = 0;
+
+// إعداد مساحة اللعب
+function init() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    
+    cols = Math.ceil(width / cellSize);
+    rows = Math.ceil(height / cellSize);
+    totalCells = cols * rows;
+    
+    // إنشاء شبكة فارغة (0 = سليم، 1 = مصاب)
+    grid = new Array(cols).fill(0).map(() => new Array(rows).fill(0));
+    
+    // نقطة البداية في المركز
+    infect(Math.floor(cols/2), Math.floor(rows/2));
+}
+
+function infect(x, y) {
+    if (x >= 0 && x < cols && y >= 0 && y < rows && grid[x][y] === 0) {
+        grid[x][y] = 1;
+        infectedCount++;
+        return true;
+    }
+    return false;
+}
+
+// التفاعل عند الضغط (للقضاء على الفيروس)
+function handleClick(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX || e.touches[0].clientX) - rect.left;
+    const mouseY = (e.clientY || e.touches[0].clientY) - rect.top;
+    
+    const c = Math.floor(mouseX / cellSize);
+    const r = Math.floor(mouseY / cellSize);
+
+    // تنظيف منطقة صغيرة حول الضغطة
+    for(let i = -2; i <= 2; i++) {
+        for(let j = -2; j <= 2; j++) {
+            if(grid[c+i] && grid[c+i][r+j] === 1) {
+                grid[c+i][r+j] = 0;
+                infectedCount--;
+            }
+        }
+    }
+}
+
+canvas.addEventListener('mousedown', handleClick);
+canvas.addEventListener('touchstart', handleClick);
+
+function update() {
+    let toInfect = [];
+    
+    // فحص الخلايا المصابة لنشر العدوى
+    for (let i = 0; i < cols; i++) {
+        for (let j = 0; j < rows; j++) {
+            if (grid[i][j] === 1) {
+                // احتمال انتشار عشوائي للجيران
+                if (Math.random() < 0.2) {
+                    const neighbors = [[0,1], [0,-1], [1,0], [-1,0]];
+                    const move = neighbors[Math.floor(Math.random() * 4)];
+                    toInfect.push([i + move[0], j + move[1]]);
+                }
+            }
+        }
+    }
+
+    toInfect.forEach(pos => infect(pos[0], pos[1]));
+
+    // تحديث النسبة المئوية
+    let percentage = ((infectedCount / totalCells) * 100).toFixed(1);
+    scoreEl.innerText = percentage;
+
+    if (percentage > 95) {
+        alert("انتهى! الفيروس سيطر على الشاشة بالكامل.");
+        init();
+    }
+}
+
+function draw() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = "#00ff00"; // لون أخضر فسفوري
+    for (let i = 0; i < cols; i++) {
+        for (let j = 0; j < rows; j++) {
+            if (grid[i][j] === 1) {
+                ctx.fillRect(i * cellSize, j * cellSize, cellSize - 1, cellSize - 1);
+            }
+        }
+    }
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+window.addEventListener('resize', init);
+init();
+gameLoop();
+
+</script>
+</body>
+</html>
